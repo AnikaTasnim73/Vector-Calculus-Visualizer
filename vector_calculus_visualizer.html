@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vector Calculus Visualizer: Gradient, Divergence &amp; Curl</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      overflow: hidden;
+      user-select: none;
+    }
+    .page { position: fixed; inset: 0; display: none; }
+    .page.active { display: block; }
+
+    /* ============ Top navigation ============ */
+    #nav {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+    #nav button {
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: #cbd5e1;
+      padding: 8px 16px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+    #nav button:hover { background: rgba(51, 65, 85, 0.9); color: #fff; }
+    #nav button.active { background: #2563eb; color: #fff; }
+
+    /* ======================================================
+       GRADIENT PAGE (light theme)
+       ====================================================== */
+    #page-grad { background: #ffffff; color: #1e293b; }
+    #g-canvas-container { width: 100vw; height: 100vh; position: relative; }
+
+    #page-grad .panel {
+      position: fixed;
+      top: 62px;
+      left: 20px;
+      width: 320px;
+      max-height: calc(100vh - 82px);
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+      z-index: 20;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    #page-grad .panel.hidden { transform: translateX(-360px); opacity: 0; pointer-events: none; }
+    #page-grad .panel h1 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #page-grad .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    #page-grad .preset-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    #page-grad .caption {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #475569;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 14px;
+    }
+    #page-grad button {
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    #page-grad button:hover { background: #e2e8f0; }
+    #page-grad button.active { background: #2563eb; color: #ffffff; border-color: #2563eb; }
+
+    #page-grad .fn-group { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+    #page-grad .fn-label { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    #page-grad textarea#g-fn-input {
+      width: 100%;
+      resize: none;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #0f172a;
+      user-select: text;
+    }
+    #page-grad textarea#g-fn-input:focus,
+    #page-grad select:focus,
+    #page-grad input[type="number"]:focus {
+      outline: 2px solid #93c5fd;
+      border-color: #2563eb;
+    }
+    #page-grad .fn-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 6px; }
+    #page-grad select, #page-grad input[type="number"] {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 12px;
+      background: #fff;
+      color: #0f172a;
+    }
+    #page-grad .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    #page-grad .row2 label { font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 3px; }
+    #g-fn-msg { margin-top: 8px; font-size: 11px; line-height: 1.4; color: #64748b; word-break: break-word; user-select: text; }
+    #g-fn-msg.error { color: #b91c1c; font-weight: 600; }
+    #g-fn-msg .warn { color: #b45309; }
+    #g-fn-msg code { font-family: "SF Mono", Menlo, Consolas, monospace; color: #334155; }
+
+    #page-grad .slider-group { margin-bottom: 12px; }
+    #page-grad .slider-header { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    #page-grad input[type="range"] { width: 100%; accent-color: #2563eb; cursor: pointer; }
+    #page-grad .toggles {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 12px 0;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 13px;
+    }
+    #page-grad .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    #page-grad .toggles label.disabled { opacity: 0.45; }
+    #page-grad .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    #page-grad .readout {
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      margin-bottom: 12px;
+    }
+    #page-grad .readout-row { display: flex; justify-content: space-between; gap: 8px; }
+    #page-grad .val-dy { color: #2e7d32; font-weight: 700; }
+    #page-grad .val-dx { color: #c62828; font-weight: 700; }
+    #page-grad .val-gr { color: #6d28d9; font-weight: 700; }
+    #page-grad .footer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #page-grad .show-btn {
+      position: fixed;
+      top: 62px;
+      left: 20px;
+      z-index: 15;
+      display: none;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    #page-grad .show-btn.visible { display: block; }
+
+    #page-grad .label-3d {
+      position: fixed;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      font-family: "Times New Roman", Georgia, serif;
+      font-weight: 700;
+      text-shadow: 0 0 6px #ffffff, 0 0 10px #ffffff;
+    }
+    #page-grad .frac { display: inline-flex; flex-direction: column; align-items: center; font-size: 20px; line-height: 1.05; }
+    #page-grad .frac-top { border-bottom: 2px solid currentColor; padding: 0 3px 1px; }
+    #page-grad .frac-bot { padding: 1px 3px 0; }
+    #page-grad .axis-label { font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    #page-grad .grad-label { font-size: 24px; color: #6d28d9; }
+    #page-grad .hint {
+      position: fixed;
+      bottom: 14px;
+      right: 18px;
+      font-size: 12px;
+      color: #64748b;
+      background: rgba(255,255,255,0.8);
+      padding: 4px 10px;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+    #g-error { position: fixed; top: 120px; left: 50%; transform: translateX(-50%); color: #b91c1c; font-weight: 600; text-align: center; max-width: 480px; }
+
+    /* ======================================================
+       DIVERGENCE & CURL PAGES (dark theme, 2D canvas)
+       ====================================================== */
+    .field-page { background: #0f172a; color: #f8fafc; }
+    .field-page canvas { display: block; width: 100vw; height: 100vh; cursor: grab; }
+    .field-page canvas:active { cursor: grabbing; }
+
+    .field-page .panel {
+      position: fixed;
+      top: 62px;
+      left: 18px;
+      width: 330px;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      z-index: 20;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    .field-page .panel.hidden { transform: translateX(-370px); opacity: 0; pointer-events: none; }
+    .field-page .panel h1 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #f8fafc;
+    }
+    .field-page .sub-hint { font-size: 11px; color: #94a3b8; font-weight: 500; }
+    .field-page .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+    .field-page button {
+      cursor: pointer;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(30, 41, 59, 0.9);
+      color: #e2e8f0;
+      padding: 7px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .field-page button:hover { background: rgba(51, 65, 85, 0.95); }
+    .field-page button.active { background: #2563eb; border-color: #3b82f6; color: #ffffff; }
+    .field-page .formula-box {
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-family: "Times New Roman", Georgia, serif;
+      font-size: 16px;
+      text-align: center;
+      color: #e2e8f0;
+    }
+    .field-page .formula-desc {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .field-page .formula-def {
+      font-size: 14px;
+      color: #93c5fd;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .field-page .readout {
+      background: rgba(2, 6, 23, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.75;
+      margin-bottom: 10px;
+    }
+    .field-page .readout-row { display: flex; justify-content: space-between; align-items: center; }
+    .field-page .badge { padding: 1px 7px; border-radius: 5px; font-weight: 700; font-size: 12px; }
+    .field-page .verdict {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #cbd5e1;
+      background: rgba(30, 41, 59, 0.7);
+      border-left: 3px solid #94a3b8;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+    }
+    .field-page .toggles {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 12px;
+      font-size: 12.5px;
+      color: #cbd5e1;
+    }
+    .field-page .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .field-page .heatmap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+    .field-page .heatmap-row button { text-align: center; padding: 6px 4px; }
+    .field-page .legend { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
+    .field-page .footer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .field-page .footer-row button { text-align: center; }
+    .field-page .show-btn {
+      position: fixed;
+      top: 62px;
+      left: 18px;
+      z-index: 15;
+      display: none;
+      padding: 8px 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .field-page .show-btn.visible { display: block; }
+    .field-page .slide-banner {
+      position: fixed;
+      top: 62px;
+      right: 18px;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 12px;
+      padding: 10px 16px;
+      text-align: right;
+      pointer-events: none;
+      z-index: 15;
+    }
+    .field-page .banner-title { font-size: 16px; font-weight: 700; color: #f8fafc; }
+    .field-page .banner-math { font-family: "Times New Roman", Georgia, serif; font-size: 15px; color: #93c5fd; margin-top: 2px; }
+    .field-page .hint-bar {
+      position: fixed;
+      bottom: 14px;
+      right: 18px;
+      font-size: 12px;
+      color: #94a3b8;
+      background: rgba(15, 23, 42, 0.75);
+      padding: 5px 11px;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Navigation ===== -->
+  <div id="nav">
+    <button data-page="grad" class="active" title="Shortcut: G">&nabla; Gradient</button>
+    <button data-page="div" title="Shortcut: D">Divergence</button>
+    <button data-page="curl" title="Shortcut: C">Curl</button>
+  </div>
+
+  <!-- ===== Page 1: Gradient (3D) ===== -->
+  <section class="page active" id="page-grad">
+    <div id="g-canvas-container"></div>
+
+    <div id="g-lbl-dy" class="label-3d" style="color:#1b5e20;">
+      <span class="frac"><span class="frac-top">&part;z</span><span class="frac-bot">&part;y</span></span>
+    </div>
+    <div id="g-lbl-dx" class="label-3d" style="color:#b71c1c;">
+      <span class="frac"><span class="frac-top">&part;z</span><span class="frac-bot">&part;x</span></span>
+    </div>
+    <div id="g-lbl-grad" class="label-3d grad-label">&nabla;f</div>
+    <div id="g-lbl-x" class="label-3d axis-label" style="color:#dc2626;">x</div>
+    <div id="g-lbl-y" class="label-3d axis-label" style="color:#16a34a;">y</div>
+    <div id="g-lbl-z" class="label-3d axis-label" style="color:#1d4ed8;">z</div>
+
+    <button id="g-show-btn" class="show-btn">Show Controls (H)</button>
+
+    <div class="panel" id="g-panel">
+      <h1>
+        Gradient &amp; Partial Derivatives
+        <span style="font-size:11px; color:#64748b; font-weight:500;">H to hide</span>
+      </h1>
+
+      <div class="fn-group">
+        <div class="fn-label">z = f(x, y)</div>
+        <textarea id="g-fn-input" rows="3" spellcheck="false" placeholder="e.g. sin(x) * cos(y) + x^2 / 20"></textarea>
+        <div class="fn-row">
+          <select id="g-fn-examples">
+            <option value="">Choose an example&hellip;</option>
+          </select>
+          <button id="g-btn-apply">Plot</button>
+        </div>
+        <div class="row2">
+          <div>
+            <label for="g-domain">Domain &plusmn;</label>
+            <input type="number" id="g-domain" value="20" min="2" max="40" step="1" />
+          </div>
+          <div>
+            <label for="g-label-step">Axis number step</label>
+            <select id="g-label-step">
+              <option value="1" selected>Every 1</option>
+              <option value="2">Every 2</option>
+              <option value="5">Every 5</option>
+            </select>
+          </div>
+        </div>
+        <div id="g-fn-msg"></div>
+      </div>
+
+      <div class="section-title">Slides</div>
+      <div class="preset-row">
+        <button id="g-btn-mode-x">1 &middot; &part;z/&part;x</button>
+        <button id="g-btn-mode-y">2 &middot; &part;z/&part;y</button>
+        <button id="g-btn-mode-both" class="active">3 &middot; Together</button>
+      </div>
+      <div class="caption" id="g-caption"></div>
+
+      <div class="slider-group">
+        <div class="slider-header"><span>x-position (a)</span><span id="g-val-x">10.00</span></div>
+        <input type="range" id="g-slider-x" min="-20" max="20" step="0.25" value="10" />
+      </div>
+      <div class="slider-group">
+        <div class="slider-header"><span>y-position (b)</span><span id="g-val-y">8.00</span></div>
+        <input type="range" id="g-slider-y" min="-20" max="20" step="0.25" value="8" />
+      </div>
+
+      <div class="toggles">
+        <label id="g-lab-grad">
+          <input type="checkbox" id="g-chk-grad" checked />
+          <span class="dot" style="background:#7c3aed;"></span>
+          Show gradient &nabla;f (Together slide)
+        </label>
+        <label>
+          <input type="checkbox" id="g-chk-plane" />
+          <span class="dot" style="background:#f59e0b;"></span>
+          Show Tangent Plane
+        </label>
+      </div>
+
+      <div class="readout">
+        <div class="readout-row"><span>z = f(a, b)</span><span id="g-out-z">0.00</span></div>
+        <div class="readout-row" id="g-row-dx"><span>&part;z/&part;x (red)</span><span id="g-out-dx" class="val-dx">0.00</span></div>
+        <div class="readout-row" id="g-row-dy"><span>&part;z/&part;y (green)</span><span id="g-out-dy" class="val-dy">0.00</span></div>
+        <div class="readout-row" id="g-row-grad"><span>&nabla;f (purple)</span><span id="g-out-grad" class="val-gr">(0, 0)</span></div>
+        <div class="readout-row" id="g-row-mag"><span>|&nabla;f|</span><span id="g-out-mag" class="val-gr">0.00</span></div>
+      </div>
+
+      <div class="footer-btns">
+        <button id="g-btn-reset">Reset View</button>
+        <button id="g-btn-hide">Hide UI (H)</button>
+      </div>
+    </div>
+
+    <div class="hint">Drag to rotate &bull; Scroll to zoom &bull; Right-drag to pan &bull; Keys 1/2/3 switch slides</div>
+  </section>
+
+  <!-- ===== Page 2: Divergence ===== -->
+  <section class="page field-page" id="page-div"></section>
+
+  <!-- ===== Page 3: Curl ===== -->
+  <section class="page field-page" id="page-curl"></section>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.1/math.min.js"></script>
+
+  <script>
+  // =========================================================
+  // App shell
+  // =========================================================
+  const App = { active: 'grad', pages: {} };
+  const PAGE_IDS = { grad: 'page-grad', div: 'page-div', curl: 'page-curl' };
+  const HASHES = { grad: 'gradient', div: 'divergence', curl: 'curl' };
+
+  function isTyping(e) {
+    const tag = (e.target && e.target.tagName) || '';
+    return tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT';
+  }
+
+  // =========================================================
+  // PAGE 1: GRADIENT (3D)
+  // =========================================================
+  (function gradientPage() {
+    try {
+      const $ = id => document.getElementById('g-' + id);
+
+      const ZCLIP = 100;
+      const SEGMENTS = 140;
+      let D = 20;
+      let U = 1;
+      let zMin = 0, zMax = 0;
+      let zLo = 0, zHi = 1;
+      let mode = 'both';
+
+      const scope = { x: 0, y: 0, ln: Math.log };
+      let cF = null, cFx = null, cFy = null;
+      let dxStr = '', dyStr = '';
+
+      const EXAMPLES = [
+        { name: 'Original: four peaks',
+          expr: '10*exp(-((x-10)^2+(y-10)^2)/25) + 10*exp(-((x+10)^2+(y+10)^2)/25) - 10*exp(-((x-10)^2+(y+10)^2)/25) - 10*exp(-((x+10)^2+(y-10)^2)/25)',
+          D: 20, a: 10, b: 8 },
+        { name: 'Paraboloid: x^2 + y^2', expr: 'x^2 + y^2', D: 4, a: 2, b: 1.5 },
+        { name: 'Saddle: x^2 - y^2', expr: 'x^2 - y^2', D: 4, a: 2, b: 1.5 },
+        { name: 'Monkey saddle: x^3 - 3xy^2', expr: 'x^3 - 3*x*y^2', D: 3, a: 1.5, b: 1 },
+        { name: 'Waves: 3 sin(x) cos(y)', expr: '3*sin(x)*cos(y)', D: 10, a: 3, b: 2 },
+        { name: 'Gaussian hill', expr: '10*exp(-(x^2+y^2)/20)', D: 12, a: 4, b: 3 },
+        { name: 'Ripple', expr: '10*cos(sqrt(x^2+y^2))*exp(-sqrt(x^2+y^2)/8)', D: 16, a: 5, b: 3 }
+      ];
+
+      function toNum(v) { return (typeof v === 'number' && isFinite(v)) ? v : NaN; }
+      function clampZ(v) { return Math.max(-ZCLIP, Math.min(ZCLIP, v)); }
+
+      function f(x, y) {
+        scope.x = x; scope.y = y;
+        let r = NaN;
+        try { r = toNum(cF.evaluate(scope)); } catch (e) {}
+        return isFinite(r) ? r : 0;
+      }
+      function dfdx(x, y) {
+        if (cFx) {
+          try {
+            scope.x = x; scope.y = y;
+            const r = toNum(cFx.evaluate(scope));
+            if (isFinite(r)) return r;
+          } catch (e) {}
+        }
+        const h = 1e-4;
+        return (f(x + h, y) - f(x - h, y)) / (2 * h);
+      }
+      function dfdy(x, y) {
+        if (cFy) {
+          try {
+            scope.x = x; scope.y = y;
+            const r = toNum(cFy.evaluate(scope));
+            if (isFinite(r)) return r;
+          } catch (e) {}
+        }
+        const h = 1e-4;
+        return (f(x, y + h) - f(x, y - h)) / (2 * h);
+      }
+
+      function simplifyStr(node) {
+        let s;
+        try { s = math.simplify(node).toString(); } catch (e) { s = node.toString(); }
+        return s.length > 140 ? s.slice(0, 137) + '...' : s;
+      }
+
+      function compileFunction(src) {
+        src = src.replace(/\*\*/g, '^').replace(/\s+/g, ' ').trim();
+        if (!src) throw new Error('Please enter a function of x and y.');
+        const node = math.parse(src);
+        const code = node.compile();
+        const testScope = { x: 0.7, y: 0.3, ln: Math.log };
+        let t;
+        try { t = code.evaluate(testScope); }
+        catch (err) { throw new Error('Cannot evaluate: ' + err.message); }
+        if (typeof t !== 'number') throw new Error('The expression must give a real number for given x and y.');
+
+        let fx = null, fy = null, sx = 'numeric derivative', sy = 'numeric derivative';
+        try {
+          const dn = math.derivative(node, 'x');
+          const c = dn.compile(); c.evaluate(testScope);
+          fx = c; sx = simplifyStr(dn);
+        } catch (e) {}
+        try {
+          const dn = math.derivative(node, 'y');
+          const c = dn.compile(); c.evaluate(testScope);
+          fy = c; sy = simplifyStr(dn);
+        } catch (e) {}
+        return { code, fx, fy, sx, sy };
+      }
+
+      // Map math (x, y, z) to Three.js (X=x, Y=z, Z=-y)
+      function toThree(x, y, z) { return new THREE.Vector3(x, z, -y); }
+
+      // ---- Scene ----
+      const container = $('canvas-container');
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xffffff);
+
+      const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1500);
+      const defaultCamPos = new THREE.Vector3(28, 23, 31);
+      camera.position.copy(defaultCamPos);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.set(0, 0, 0);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.65);
+      dirLight1.position.set(25, 45, 25);
+      scene.add(dirLight1);
+      const dirLight2 = new THREE.DirectionalLight(0xdbeafe, 0.35);
+      dirLight2.position.set(-30, 20, -20);
+      scene.add(dirLight2);
+
+      const blackMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
+      function disposeObj(obj) {
+        if (!obj) return;
+        scene.remove(obj);
+        obj.traverse(ch => {
+          if (ch.geometry && !ch.isSprite) ch.geometry.dispose();
+          if (ch.material) {
+            const ms = Array.isArray(ch.material) ? ch.material : [ch.material];
+            ms.forEach(m => { if (m !== blackMat) m.dispose(); });
+          }
+        });
+      }
+
+      // ---- Surface ----
+      const surfPos = new Float32Array((SEGMENTS + 1) * (SEGMENTS + 1) * 3);
+      const surfGeom = new THREE.BufferGeometry();
+      const indices = [];
+      for (let i = 0; i < SEGMENTS; i++) {
+        for (let j = 0; j < SEGMENTS; j++) {
+          const a = i * (SEGMENTS + 1) + j;
+          const b = (i + 1) * (SEGMENTS + 1) + j;
+          const c = (i + 1) * (SEGMENTS + 1) + (j + 1);
+          const d = i * (SEGMENTS + 1) + (j + 1);
+          indices.push(a, b, d, b, c, d);
+        }
+      }
+      surfGeom.setAttribute('position', new THREE.BufferAttribute(surfPos, 3));
+      surfGeom.setIndex(indices);
+      const surfMat = new THREE.MeshPhongMaterial({
+        color: 0x8cbce8, specular: 0x334455, shininess: 35, side: THREE.DoubleSide
+      });
+      const surfMesh = new THREE.Mesh(surfGeom, surfMat);
+      surfMesh.frustumCulled = false;
+      scene.add(surfMesh);
+
+      function buildSurface() {
+        let idx = 0, zmin = Infinity, zmax = -Infinity, clipped = false;
+        for (let i = 0; i <= SEGMENTS; i++) {
+          const x = -D + (2 * D * i) / SEGMENTS;
+          for (let j = 0; j <= SEGMENTS; j++) {
+            const y = -D + (2 * D * j) / SEGMENTS;
+            let z = f(x, y);
+            if (Math.abs(z) > ZCLIP) { clipped = true; z = clampZ(z); }
+            if (z < zmin) zmin = z;
+            if (z > zmax) zmax = z;
+            surfPos[idx++] = x;
+            surfPos[idx++] = z;
+            surfPos[idx++] = -y;
+          }
+        }
+        surfGeom.attributes.position.needsUpdate = true;
+        surfGeom.computeVertexNormals();
+        zMin = zmin; zMax = zmax;
+        return clipped;
+      }
+
+      // ---- Axes with numbering ----
+      let axisGroup = null;
+      const axisLblPos = { x: new THREE.Vector3(), y: new THREE.Vector3(), z: new THREE.Vector3() };
+      const texCache = new Map();
+
+      function labelTexture(text, color) {
+        const key = text + '|' + color;
+        if (texCache.has(key)) return texCache.get(key);
+        const c = document.createElement('canvas');
+        c.width = 128; c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.font = 'bold 40px -apple-system, "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.lineWidth = 8;
+        ctx.strokeText(text, 64, 34);
+        ctx.fillStyle = color;
+        ctx.fillText(text, 64, 34);
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter;
+        texCache.set(key, tex);
+        return tex;
+      }
+
+      function makeLabelSprite(text, color, pos) {
+        const mat = new THREE.SpriteMaterial({
+          map: labelTexture(text, color),
+          transparent: true,
+          depthTest: false,
+          depthWrite: false
+        });
+        const s = new THREE.Sprite(mat);
+        s.scale.set(2.2 * U, 1.1 * U, 1);
+        s.position.copy(pos);
+        s.renderOrder = 10;
+        return s;
+      }
+
+      function buildAxis(from, to, color) {
+        const group = new THREE.Group();
+        const dir = to.clone().sub(from);
+        const len = dir.length();
+        const mat = new THREE.MeshBasicMaterial({ color });
+
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * U, 0.08 * U, len - 0.8 * U, 12), mat);
+        shaft.position.y = (len - 0.8 * U) / 2;
+        group.add(shaft);
+
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.32 * U, 1.1 * U, 16), mat);
+        cone.position.y = len - 0.55 * U;
+        group.add(cone);
+
+        group.position.copy(from);
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+        return group;
+      }
+
+      function niceStep(v) {
+        if (v <= 0) return 1;
+        const p = Math.pow(10, Math.floor(Math.log10(v)));
+        for (const m of [1, 2, 5, 10]) if (m * p >= v) return m * p;
+        return 10 * p;
+      }
+      function fmtNum(v) { return Number(v.toFixed(2)).toString().replace('-', '\u2212'); }
+
+      function buildAxes() {
+        if (axisGroup) disposeObj(axisGroup);
+        axisGroup = new THREE.Group();
+
+        zLo = Math.min(0, Math.floor(zMin));
+        zHi = Math.max(1, Math.ceil(zMax));
+        const ext = 1.5 * U;
+
+        axisGroup.add(buildAxis(toThree(-D, 0, 0), toThree(D + ext, 0, 0), 0xdc2626));
+        axisGroup.add(buildAxis(toThree(0, -D, 0), toThree(0, D + ext, 0), 0x16a34a));
+        axisGroup.add(buildAxis(toThree(0, 0, zLo), toThree(0, 0, zHi + ext), 0x1d4ed8));
+
+        const step = parseFloat($('label-step').value) || 1;
+        const zStep = Math.max(step, niceStep((zHi - zLo) / 14));
+        const tickGeo = new THREE.SphereGeometry(0.1 * U, 8, 8);
+        const mx = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
+        const my = new THREE.MeshBasicMaterial({ color: 0x16a34a });
+        const mz = new THREE.MeshBasicMaterial({ color: 0x1d4ed8 });
+
+        for (let k = Math.ceil(-D / step); k <= Math.floor(D / step); k++) {
+          if (k === 0) continue;
+          const v = k * step;
+          const tx = new THREE.Mesh(tickGeo, mx); tx.position.copy(toThree(v, 0, 0)); axisGroup.add(tx);
+          const ty = new THREE.Mesh(tickGeo, my); ty.position.copy(toThree(0, v, 0)); axisGroup.add(ty);
+          axisGroup.add(makeLabelSprite(fmtNum(v), '#b91c1c', toThree(v, -1.0 * U, 0)));
+          axisGroup.add(makeLabelSprite(fmtNum(v), '#15803d', toThree(1.0 * U, v, 0)));
+        }
+        for (let k = Math.ceil(zLo / zStep); k <= Math.floor(zHi / zStep); k++) {
+          if (k === 0) continue;
+          const v = k * zStep;
+          const tz = new THREE.Mesh(tickGeo, mz); tz.position.copy(toThree(0, 0, v)); axisGroup.add(tz);
+          axisGroup.add(makeLabelSprite(fmtNum(v), '#1e40af', toThree(-1.0 * U, 0, v)));
+        }
+        axisGroup.add(makeLabelSprite('0', '#334155', toThree(-0.9 * U, -0.9 * U, 0)));
+
+        scene.add(axisGroup);
+
+        axisLblPos.x.copy(toThree(D + 2.5 * U, 0, 0));
+        axisLblPos.y.copy(toThree(0, D + 2.5 * U, 0));
+        axisLblPos.z.copy(toThree(0, 0, zHi + 2.5 * U));
+      }
+
+      // ---- Dynamic elements ----
+      let dynGroup = null;
+      const pointDot = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+      scene.add(pointDot);
+
+      function makeTubeCurve(points) {
+        const curve = new THREE.CatmullRomCurve3(points);
+        const geo = new THREE.TubeGeometry(curve, 200, 0.16 * U, 8, false);
+        return new THREE.Mesh(geo, blackMat);
+      }
+
+      function makeVectorArrow(start, direction, length, color, opt = {}) {
+        const group = new THREE.Group();
+        const mat = new THREE.MeshPhongMaterial({ color, shininess: 40, depthTest: !opt.noDepth });
+        const rs = (opt.r || 0.16) * U;
+        const rc = (opt.cone || 0.42) * U;
+        const headLen = (opt.head || 1.1) * U;
+        const shaftLen = Math.max(0.2 * U, length - headLen);
+
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(rs, rs, shaftLen, 14), mat);
+        shaft.position.y = shaftLen / 2;
+        group.add(shaft);
+
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(rc, headLen, 16), mat);
+        cone.position.y = shaftLen + headLen / 2;
+        group.add(cone);
+
+        group.position.copy(start);
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+        if (opt.noDepth) group.traverse(o => { o.renderOrder = 5; });
+        return group;
+      }
+
+      function makeThinTube(p0, p1, color, radius) {
+        if (p0.distanceTo(p1) < 1e-4) return null;
+        const geo = new THREE.TubeGeometry(new THREE.LineCurve3(p0, p1), 1, radius, 8, false);
+        const mat = new THREE.MeshBasicMaterial({ color, depthTest: false });
+        const m = new THREE.Mesh(geo, mat);
+        m.renderOrder = 5;
+        return m;
+      }
+
+      function makeDashedLine(p0, p1, color) {
+        if (p0.distanceTo(p1) < 1e-4) return null;
+        const geo = new THREE.BufferGeometry().setFromPoints([p0, p1]);
+        const mat = new THREE.LineDashedMaterial({ color, dashSize: 0.35 * U, gapSize: 0.25 * U, depthTest: false });
+        const line = new THREE.Line(geo, mat);
+        line.computeLineDistances();
+        line.renderOrder = 5;
+        return line;
+      }
+
+      let labelDyPos = new THREE.Vector3();
+      let labelDxPos = new THREE.Vector3();
+      let labelGradPos = new THREE.Vector3();
+      let showXFlag = true, showYFlag = true, showGFlag = false;
+
+      const sliderX = $('slider-x');
+      const sliderY = $('slider-y');
+      const chkGrad = $('chk-grad');
+      const chkPlane = $('chk-plane');
+
+      function fmtVal(v) {
+        if (!isFinite(v)) return 'undef.';
+        if (Math.abs(v) >= 1e5) return v.toExponential(2);
+        return v.toFixed(3);
+      }
+
+      const CAPTIONS = {
+        x: 'Slide 1: Hold y = b fixed and move only along x. The red curve is that slice; the red arrow is its slope at the point, \u2202z/\u2202x.',
+        y: 'Slide 2: Hold x = a fixed and move only along y. The green curve is that slice; the green arrow is its slope at the point, \u2202z/\u2202y.',
+        both: 'Slide 3: Both slices together. The red part (\u2202z/\u2202x) and the green part (\u2202z/\u2202y) add as vectors into the gradient \u2207f = (\u2202z/\u2202x, \u2202z/\u2202y), the purple arrow, which points toward steepest ascent.'
+      };
+
+      function updateScene() {
+        if (!cF) return;
+        const a = parseFloat(sliderX.value);
+        const b = parseFloat(sliderY.value);
+        const zTrue = f(a, b);
+        const z0 = clampZ(zTrue);
+        const fx = dfdx(a, b);
+        const fy = dfdy(a, b);
+        const g = Math.hypot(fx, fy);
+
+        showXFlag = mode !== 'y';
+        showYFlag = mode !== 'x';
+        showGFlag = mode === 'both' && chkGrad.checked;
+
+        $('val-x').textContent = a.toFixed(2);
+        $('val-y').textContent = b.toFixed(2);
+        $('out-z').textContent = fmtVal(zTrue);
+        $('out-dx').textContent = fmtVal(fx);
+        $('out-dy').textContent = fmtVal(fy);
+        $('out-grad').textContent = '(' + fx.toFixed(2) + ', ' + fy.toFixed(2) + ')';
+        $('out-mag').textContent = fmtVal(g);
+        $('row-dx').style.display = showXFlag ? 'flex' : 'none';
+        $('row-dy').style.display = showYFlag ? 'flex' : 'none';
+        $('row-grad').style.display = mode === 'both' ? 'flex' : 'none';
+        $('row-mag').style.display = mode === 'both' ? 'flex' : 'none';
+        $('lab-grad').classList.toggle('disabled', mode !== 'both');
+        chkGrad.disabled = mode !== 'both';
+
+        const P = toThree(a, b, z0 + 0.12 * U);
+        pointDot.position.copy(P);
+        pointDot.scale.setScalar(U);
+
+        if (dynGroup) { disposeObj(dynGroup); dynGroup = null; }
+        dynGroup = new THREE.Group();
+
+        const curveStep = D / 80;
+
+        if (showYFlag) {
+          const pts = [];
+          for (let t = -D; t <= D + 1e-9; t += curveStep) pts.push(toThree(a, t, clampZ(f(a, t)) + 0.1 * U));
+          dynGroup.add(makeTubeCurve(pts));
+
+          const dirY = toThree(0, 1, fy);
+          const arrowLen = 4.2 * U;
+          dynGroup.add(makeVectorArrow(P, dirY, arrowLen, 0x64b500));
+          labelDyPos = P.clone().add(dirY.clone().normalize().multiplyScalar(arrowLen + 1.4 * U));
+        }
+
+        if (showXFlag) {
+          const pts = [];
+          for (let t = -D; t <= D + 1e-9; t += curveStep) pts.push(toThree(t, b, clampZ(f(t, b)) + 0.1 * U));
+          dynGroup.add(makeTubeCurve(pts));
+
+          const dirX = toThree(1, 0, fx);
+          const arrowLen = 4.2 * U;
+          dynGroup.add(makeVectorArrow(P, dirX, arrowLen, 0xe53935));
+          labelDxPos = P.clone().add(dirX.clone().normalize().multiplyScalar(arrowLen + 1.4 * U));
+        }
+
+        if (showGFlag && g > 1e-6) {
+          const L = Math.min(Math.max(g * 4, 2), 10) * U;
+          const k = L / g;
+          const ax = fx * k, ay = fy * k;
+          const at = (dx, dy) => new THREE.Vector3(P.x + dx, P.y, P.z - dy);
+          const A = at(ax, 0), B = at(0, ay), T = at(ax, ay);
+
+          const t1 = makeThinTube(P, A, 0xe53935, 0.09 * U); if (t1) dynGroup.add(t1);
+          const t2 = makeThinTube(A, T, 0x64b500, 0.09 * U); if (t2) dynGroup.add(t2);
+          const d1 = makeDashedLine(P, B, 0x64b500); if (d1) dynGroup.add(d1);
+          const d2 = makeDashedLine(B, T, 0xe53935); if (d2) dynGroup.add(d2);
+
+          dynGroup.add(makeVectorArrow(P, T.clone().sub(P), L, 0x7c3aed, { r: 0.2, cone: 0.52, head: 1.3, noDepth: true }));
+          labelGradPos = T.clone().add(T.clone().sub(P).normalize().multiplyScalar(1.6 * U));
+        } else if (showGFlag) {
+          showGFlag = false;
+        }
+
+        if (chkPlane.checked) {
+          const s = 4.5 * U;
+          const e = 0.05 * U;
+          const corners = [
+            toThree(a - s, b - s, z0 + fx * (-s) + fy * (-s) + e),
+            toThree(a + s, b - s, z0 + fx * ( s) + fy * (-s) + e),
+            toThree(a + s, b + s, z0 + fx * ( s) + fy * ( s) + e),
+            toThree(a - s, b + s, z0 + fx * (-s) + fy * ( s) + e)
+          ];
+          const pGeo = new THREE.BufferGeometry().setFromPoints([
+            corners[0], corners[1], corners[2],
+            corners[0], corners[2], corners[3]
+          ]);
+          pGeo.computeVertexNormals();
+          const pMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+          dynGroup.add(new THREE.Mesh(pGeo, pMat));
+        }
+
+        scene.add(dynGroup);
+      }
+
+      // ---- Rebuild helpers & messages ----
+      const fnInput = $('fn-input');
+      const domainInput = $('domain');
+      const msgEl = $('fn-msg');
+
+      function readDomain() {
+        let v = parseFloat(domainInput.value);
+        if (!isFinite(v)) v = 20;
+        D = Math.max(2, Math.min(40, v));
+        domainInput.value = D;
+      }
+
+      function configureSliders() {
+        const step = D >= 20 ? 0.25 : (D >= 8 ? 0.1 : 0.05);
+        [sliderX, sliderY].forEach(s => {
+          s.min = -D; s.max = D; s.step = step;
+          const v = parseFloat(s.value);
+          s.value = Math.max(-D, Math.min(D, isFinite(v) ? v : 0));
+        });
+      }
+
+      function resetCamera() {
+        camera.position.copy(defaultCamPos).multiplyScalar(U);
+        controls.target.set(0, 0, 0);
+        controls.update();
+      }
+
+      function showMessage(clipped, error) {
+        msgEl.className = error ? 'error' : '';
+        msgEl.textContent = '';
+        if (error) { msgEl.textContent = error; return; }
+        const l1 = document.createElement('div');
+        l1.innerHTML = '&part;z/&part;x = ';
+        const c1 = document.createElement('code'); c1.textContent = dxStr; l1.appendChild(c1);
+        const l2 = document.createElement('div');
+        l2.innerHTML = '&part;z/&part;y = ';
+        const c2 = document.createElement('code'); c2.textContent = dyStr; l2.appendChild(c2);
+        msgEl.appendChild(l1); msgEl.appendChild(l2);
+        if (clipped) {
+          const w = document.createElement('div');
+          w.className = 'warn';
+          w.textContent = 'Heads up: values beyond |z| = ' + ZCLIP + ' are clipped in the picture. Try a smaller domain.';
+          msgEl.appendChild(w);
+        }
+      }
+
+      function rebuildAll(resetCam) {
+        const clipped = buildSurface();
+        const ext = Math.max(D, Math.max(Math.abs(zMin), Math.abs(zMax)) * 0.7);
+        U = Math.min(Math.max(ext / 20, 0.3), 3);
+        configureSliders();
+        buildAxes();
+        if (resetCam) resetCamera();
+        updateScene();
+        showMessage(clipped, null);
+      }
+
+      function applyFunction(resetCam) {
+        let res;
+        try { res = compileFunction(fnInput.value); }
+        catch (err) { showMessage(false, err.message); return false; }
+        cF = res.code; cFx = res.fx; cFy = res.fy; dxStr = res.sx; dyStr = res.sy;
+        readDomain();
+        rebuildAll(resetCam);
+        return true;
+      }
+
+      // ---- UI events ----
+      const panel = $('panel');
+      const showBtn = $('show-btn');
+      const exSel = $('fn-examples');
+      const captionEl = $('caption');
+      const modeBtns = { x: $('btn-mode-x'), y: $('btn-mode-y'), both: $('btn-mode-both') };
+
+      EXAMPLES.forEach((ex, i) => {
+        const o = document.createElement('option');
+        o.value = i; o.textContent = ex.name;
+        exSel.appendChild(o);
+      });
+
+      function setMode(m) {
+        mode = m;
+        Object.keys(modeBtns).forEach(k => modeBtns[k].classList.toggle('active', k === m));
+        captionEl.textContent = CAPTIONS[m];
+        updateScene();
+      }
+      modeBtns.x.addEventListener('click', () => setMode('x'));
+      modeBtns.y.addEventListener('click', () => setMode('y'));
+      modeBtns.both.addEventListener('click', () => setMode('both'));
+
+      function togglePanel() {
+        const isHidden = panel.classList.toggle('hidden');
+        showBtn.classList.toggle('visible', isHidden);
+      }
+
+      exSel.addEventListener('change', () => {
+        if (exSel.value === '') return;
+        const ex = EXAMPLES[parseInt(exSel.value, 10)];
+        fnInput.value = ex.expr;
+        domainInput.value = ex.D;
+        D = ex.D;
+        configureSliders();
+        sliderX.value = ex.a; sliderY.value = ex.b;
+        applyFunction(true);
+      });
+
+      fnInput.addEventListener('input', () => { exSel.value = ''; });
+      fnInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); applyFunction(false); }
+      });
+      $('btn-apply').addEventListener('click', () => applyFunction(false));
+      domainInput.addEventListener('change', () => { readDomain(); rebuildAll(true); });
+      domainInput.addEventListener('keydown', e => { if (e.key === 'Enter') { readDomain(); rebuildAll(true); } });
+      $('label-step').addEventListener('change', () => buildAxes());
+
+      [sliderX, sliderY].forEach(el => el.addEventListener('input', updateScene));
+      [chkGrad, chkPlane].forEach(el => el.addEventListener('change', updateScene));
+
+      $('btn-reset').addEventListener('click', resetCamera);
+      $('btn-hide').addEventListener('click', togglePanel);
+      showBtn.addEventListener('click', togglePanel);
+
+      window.addEventListener('keydown', e => {
+        if (App.active !== 'grad' || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+        const k = e.key.toLowerCase();
+        if (k === 'h') togglePanel();
+        else if (k === '1') setMode('x');
+        else if (k === '2') setMode('y');
+        else if (k === '3') setMode('both');
+      });
+
+      function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+      window.addEventListener('resize', onResize);
+
+      // ---- Labels & frame ----
+      const lblDy = $('lbl-dy');
+      const lblDx = $('lbl-dx');
+      const lblGrad = $('lbl-grad');
+      const lblX = $('lbl-x');
+      const lblY = $('lbl-y');
+      const lblZ = $('lbl-z');
+
+      function placeLabel(el, vec3, visible = true) {
+        if (!visible) { el.style.display = 'none'; return; }
+        const p = vec3.clone().project(camera);
+        if (p.z > 1) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.style.left = `${(p.x * 0.5 + 0.5) * window.innerWidth}px`;
+        el.style.top = `${(-p.y * 0.5 + 0.5) * window.innerHeight}px`;
+      }
+
+      // Start-up
+      fnInput.value = EXAMPLES[0].expr;
+      domainInput.value = EXAMPLES[0].D;
+      sliderX.value = EXAMPLES[0].a;
+      sliderY.value = EXAMPLES[0].b;
+      captionEl.textContent = CAPTIONS[mode];
+      applyFunction(true);
+
+      function frame() {
+        controls.update();
+        renderer.render(scene, camera);
+        placeLabel(lblDy, labelDyPos, showYFlag);
+        placeLabel(lblDx, labelDxPos, showXFlag);
+        placeLabel(lblGrad, labelGradPos, showGFlag);
+        placeLabel(lblX, axisLblPos.x);
+        placeLabel(lblY, axisLblPos.y);
+        placeLabel(lblZ, axisLblPos.z);
+      }
+
+      App.pages.grad = { frame, activate: onResize };
+    } catch (err) {
+      console.error(err);
+      const el = document.createElement('div');
+      el.id = 'g-error';
+      el.textContent = 'The 3D gradient page could not start (it needs internet access to load Three.js and math.js). ' + err.message;
+      document.getElementById('page-grad').appendChild(el);
+    }
+  })();
+
+  // =========================================================
+  // PAGES 2 & 3: DIVERGENCE and CURL (2D canvas)
+  // =========================================================
+  function createFieldPage(cfg) {
+    const root = document.getElementById(cfg.rootId);
+    const isDiv = cfg.kind === 'div';
+    const PRESETS = cfg.presets;
+
+    root.innerHTML = `
+      <canvas class="fcanvas"></canvas>
+      <button class="show-btn">Show Controls (H)</button>
+
+      <div class="slide-banner">
+        <div class="banner-title"></div>
+        <div class="banner-math"></div>
+      </div>
+
+      <div class="panel">
+        <h1>${cfg.heading}<span class="sub-hint">Keys 1&ndash;6 &bull; H &bull; Space</span></h1>
+        <div class="presets"></div>
+
+        <div class="formula-box">
+          <div class="formula-text"></div>
+          <div class="formula-desc"></div>
+          <div class="formula-def">${cfg.defHTML}</div>
+        </div>
+
+        <div class="readout">
+          <div class="readout-row"><span>Probe (x, y)</span><span class="out-pos">(0.00, 0.00)</span></div>
+          <div class="readout-row"><span>${cfg.aLabel}</span><span class="out-a">0.00</span></div>
+          <div class="readout-row"><span>${cfg.bLabel}</span><span class="out-b">0.00</span></div>
+          <div class="readout-row"><span>${cfg.mainLabel}</span><span class="out-main badge">0.00</span></div>
+          ${isDiv ? '<div class="readout-row"><span>Blob area</span><span class="out-blob">&mdash;</span></div>' : ''}
+        </div>
+        <div class="verdict"></div>
+
+        <div class="toggles">
+          ${isDiv
+            ? `<label><input type="checkbox" class="chk-main" checked /> Show Divergence Flux Ring</label>
+               <label><input type="checkbox" class="chk-blob" checked /> Show Fluid Blob (watch its area)</label>`
+            : `<label><input type="checkbox" class="chk-main" checked /> Show Curl Paddlewheel</label>`}
+          <label><input type="checkbox" class="chk-arrows" checked /> Show Vector Field Arrows</label>
+          <label><input type="checkbox" class="chk-particles" checked /> Animate Fluid Particles</label>
+        </div>
+
+        <div class="heatmap-row">
+          <button class="hm-none active">No Map</button>
+          <button class="hm-on">${cfg.mapLabel}</button>
+        </div>
+        <div class="legend">${cfg.legendHTML}</div>
+
+        <div class="footer-row">
+          <button class="btn-pause">Pause (Space)</button>
+          <button class="btn-hide">Hide UI (H)</button>
+        </div>
+      </div>
+
+      <div class="hint-bar">Drag anywhere to move the probe &bull; Keys 1&ndash;6 switch slides &bull; H hides UI</div>
+    `;
+
+    const $ = s => root.querySelector(s);
+    const canvas = $('.fcanvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentPreset = PRESETS[0];
+    let probe = { x: 0, y: 0 };
+    let isDragging = false;
+    let isPaused = false;
+    let heatmapOn = false;
+    let wheelAngle = 0;
+    let pulsePhase = 0;
+    let lastTime = performance.now();
+
+    let W = window.innerWidth, H = window.innerHeight;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let scale = 95;
+
+    function resize() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      scale = Math.min(W, H) / 8.5;
+      rebuildHeatmap();
+    }
+    function toScreen(x, y) { return { sx: W / 2 + x * scale, sy: H / 2 - y * scale }; }
+    function toMath(sx, sy) { return { x: (sx - W / 2) / scale, y: -(sy - H / 2) / scale }; }
+
+    // ---- Partial derivatives of F = <P, Q> ----
+    function partials(x, y) {
+      const h = 0.0005;
+      const fn = currentPreset.fn;
+      const xp = fn(x + h, y), xm = fn(x - h, y);
+      const yp = fn(x, y + h), ym = fn(x, y - h);
+      return {
+        dPdx: (xp.p - xm.p) / (2 * h),
+        dQdx: (xp.q - xm.q) / (2 * h),
+        dPdy: (yp.p - ym.p) / (2 * h),
+        dQdy: (yp.q - ym.q) / (2 * h)
+      };
+    }
+    function mainValue(d) { return isDiv ? d.dPdx + d.dQdy : d.dQdx - d.dPdy; }
+
+    // ---- Heatmap ----
+    const hmCanvas = document.createElement('canvas');
+    const hmCtx = hmCanvas.getContext('2d');
+
+    function rebuildHeatmap() {
+      if (!heatmapOn) return;
+      const step = 8;
+      const cols = Math.ceil(W / step);
+      const rows = Math.ceil(H / step);
+      hmCanvas.width = cols;
+      hmCanvas.height = rows;
+      const img = hmCtx.createImageData(cols, rows);
+      const data = img.data;
+
+      for (let r = 0; r < rows; r++) {
+        const sy = r * step + step / 2;
+        for (let c = 0; c < cols; c++) {
+          const sx = c * step + step / 2;
+          const m = toMath(sx, sy);
+          const val = mainValue(partials(m.x, m.y));
+          const intensity = Math.min(1, Math.abs(val) / 2.2);
+          const alpha = Math.floor(intensity * 95);
+          const idx = (r * cols + c) * 4;
+          let rgb;
+          if (isDiv) rgb = val >= 0 ? [249, 115, 22] : [59, 130, 246];
+          else       rgb = val >= 0 ? [16, 185, 129] : [217, 70, 239];
+          data[idx] = rgb[0]; data[idx + 1] = rgb[1]; data[idx + 2] = rgb[2]; data[idx + 3] = alpha;
+        }
+      }
+      hmCtx.putImageData(img, 0, 0);
+    }
+
+    // ---- Particles ----
+    const NUM_PARTICLES = 420;
+    const particles = [];
+
+    function spawnParticle(p) {
+      const rangeX = (W / 2) / scale + 0.5;
+      const rangeY = (H / 2) / scale + 0.5;
+      p.x = (Math.random() * 2 - 1) * rangeX;
+      p.y = (Math.random() * 2 - 1) * rangeY;
+      p.age = Math.random() * 1.2;
+      p.maxAge = 1.6 + Math.random() * 1.6;
+      p.px = p.x;
+      p.py = p.y;
+    }
+    for (let i = 0; i < NUM_PARTICLES; i++) { const p = {}; spawnParticle(p); particles.push(p); }
+
+    function updateParticles(dt) {
+      const rangeX = (W / 2) / scale + 0.8;
+      const rangeY = (H / 2) / scale + 0.8;
+      const speed = 0.55;
+      for (const p of particles) {
+        p.px = p.x; p.py = p.y;
+        const v = currentPreset.fn(p.x, p.y);
+        const mag = Math.hypot(v.p, v.q);
+        const factor = mag > 3.5 ? 3.5 / mag : 1;
+        p.x += v.p * factor * speed * dt;
+        p.y += v.q * factor * speed * dt;
+        p.age += dt;
+        if (p.age > p.maxAge || Math.abs(p.x) > rangeX || Math.abs(p.y) > rangeY || mag < 0.03) spawnParticle(p);
+      }
+    }
+
+    // ---- Fluid blob (divergence page only) ----
+    const BLOB_N = 48, BLOB_R = 0.3, BLOB_T = 2.2, BLOB_SPEED = 0.6;
+    const blob = { pts: [], t: 0, cx: 0, cy: 0, area0: 1 };
+
+    function polyArea(pts) {
+      let s = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        s += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+      return Math.abs(s) / 2;
+    }
+    function resetBlob() {
+      blob.cx = probe.x; blob.cy = probe.y; blob.t = 0; blob.pts = [];
+      for (let i = 0; i < BLOB_N; i++) {
+        const a = (2 * Math.PI * i) / BLOB_N;
+        blob.pts.push({ x: blob.cx + BLOB_R * Math.cos(a), y: blob.cy + BLOB_R * Math.sin(a) });
+      }
+      blob.area0 = polyArea(blob.pts);
+    }
+    function updateBlob(dt) {
+      blob.t += dt;
+      if (blob.t > BLOB_T) { resetBlob(); return; }
+      for (const p of blob.pts) {
+        const v = currentPreset.fn(p.x, p.y);
+        const mag = Math.hypot(v.p, v.q);
+        const f = mag > 4 ? 4 / mag : 1;
+        p.x += v.p * f * BLOB_SPEED * dt;
+        p.y += v.q * f * BLOB_SPEED * dt;
+      }
+    }
+
+    // ---- Drawing ----
+    function drawGrid() {
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+      const maxX = Math.ceil((W / 2) / scale);
+      const maxY = Math.ceil((H / 2) / scale);
+      for (let x = -maxX; x <= maxX; x++) {
+        const { sx } = toScreen(x, 0);
+        ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+      }
+      for (let y = -maxY; y <= maxY; y++) {
+        const { sy } = toScreen(0, y);
+        ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
+      ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawVectorField() {
+      const spacing = 46;
+      const maxArrow = 24;
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (let sx = (W / 2) % spacing; sx < W; sx += spacing) {
+        for (let sy = (H / 2) % spacing; sy < H; sy += spacing) {
+          const m = toMath(sx, sy);
+          const { p, q } = currentPreset.fn(m.x, m.y);
+          const mag = Math.hypot(p, q);
+          if (mag < 0.04) continue;
+
+          const len = Math.min(maxArrow, 6 + Math.log1p(mag) * 11);
+          const angle = Math.atan2(-q, p);
+          const t = Math.min(1, mag / 4);
+          const alpha = 0.28 + t * 0.42;
+          ctx.strokeStyle = `rgba(125, 211, 252, ${alpha.toFixed(2)})`;
+          ctx.fillStyle = `rgba(125, 211, 252, ${alpha.toFixed(2)})`;
+          ctx.lineWidth = 1.4;
+
+          const ex = sx + Math.cos(angle) * len;
+          const ey = sy + Math.sin(angle) * len;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+
+          const head = 5.5;
+          ctx.beginPath();
+          ctx.moveTo(ex, ey);
+          ctx.lineTo(ex - head * Math.cos(angle - 0.5), ey - head * Math.sin(angle - 0.5));
+          ctx.lineTo(ex - head * Math.cos(angle + 0.5), ey - head * Math.sin(angle + 0.5));
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      for (const p of particles) {
+        const life = Math.sin((p.age / p.maxAge) * Math.PI);
+        const s0 = toScreen(p.px, p.py);
+        const s1 = toScreen(p.x, p.y);
+        if (Math.hypot(s1.sx - s0.sx, s1.sy - s0.sy) > 40) continue;
+        ctx.strokeStyle = `rgba(224, 242, 254, ${(life * 0.75).toFixed(2)})`;
+        ctx.beginPath(); ctx.moveTo(s0.sx, s0.sy); ctx.lineTo(s1.sx, s1.sy); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function arrowHead(x, y, dir, size) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - size * Math.cos(dir - 0.5), y - size * Math.sin(dir - 0.5));
+      ctx.lineTo(x - size * Math.cos(dir + 0.5), y - size * Math.sin(dir + 0.5));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawBlob(div) {
+      const col = div > 0.05 ? '251,146,60' : div < -0.05 ? '96,165,250' : '148,163,184';
+      ctx.save();
+      // reference circle (the starting size)
+      const c0 = toScreen(blob.cx, blob.cy);
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = `rgba(${col}, 0.6)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(c0.sx, c0.sy, BLOB_R * scale, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // the moving blob
+      ctx.beginPath();
+      blob.pts.forEach((p, i) => {
+        const s = toScreen(p.x, p.y);
+        if (i === 0) ctx.moveTo(s.sx, s.sy); else ctx.lineTo(s.sx, s.sy);
+      });
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${col}, 0.25)`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${col}, 0.95)`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFluxRing(sx, sy, div) {
+      const baseR = 46;
+      const absDiv = Math.abs(div);
+      const isPos = div > 0.05;
+      const isNeg = div < -0.05;
+      const color = isPos ? '#fb923c' : isNeg ? '#60a5fa' : '#94a3b8';
+
+      ctx.save();
+      ctx.translate(sx, sy);
+
+      if (absDiv > 0.05) {
+        const frac = pulsePhase % 1;
+        const ringR = isPos ? (baseR - 10 + frac * 26) : (baseR + 16 - frac * 26);
+        const ringAlpha = (1 - frac) * 0.55;
+        ctx.strokeStyle = isPos ? `rgba(251, 146, 60, ${ringAlpha})` : `rgba(96, 165, 250, ${ringAlpha})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, 0, ringR, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, baseR, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (absDiv > 0.05) {
+        const arrowLen = Math.min(20, 7 + absDiv * 5);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4;
+          const rStart = isPos ? baseR + 2 : baseR + arrowLen + 2;
+          const rEnd = isPos ? baseR + arrowLen + 2 : baseR + 2;
+          const x0 = Math.cos(a) * rStart, y0 = Math.sin(a) * rStart;
+          const x1 = Math.cos(a) * rEnd, y1 = Math.sin(a) * rEnd;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+          arrowHead(x1, y1, isPos ? a : a + Math.PI, 6);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawPaddlewheel(sx, sy, curl) {
+      const isPos = curl > 0.05;
+      const isNeg = curl < -0.05;
+      const wheelColor = isPos ? '#34d399' : isNeg ? '#e879f9' : '#cbd5e1';
+
+      ctx.save();
+      ctx.translate(sx, sy);
+
+      ctx.save();
+      ctx.rotate(wheelAngle);
+      ctx.strokeStyle = wheelColor;
+      ctx.fillStyle = wheelColor;
+      ctx.lineWidth = 3;
+      const bladeLen = 26;
+      for (let i = 0; i < 4; i++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bladeLen, 0); ctx.stroke();
+        ctx.fillRect(bladeLen - 3, -6, 5, 12);
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.restore();
+
+      if (Math.abs(curl) > 0.05) {
+        const arcR = 34;
+        ctx.strokeStyle = wheelColor;
+        ctx.fillStyle = wheelColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (isPos) {
+          ctx.arc(0, 0, arcR, -0.3, -1.6, true);
+          ctx.stroke();
+          arrowHead(Math.cos(-1.6) * arcR, Math.sin(-1.6) * arcR, -1.6 - Math.PI / 2, 7);
+        } else {
+          ctx.arc(0, 0, arcR, -1.6, -0.3, false);
+          ctx.stroke();
+          arrowHead(Math.cos(-0.3) * arcR, Math.sin(-0.3) * arcR, -0.3 + Math.PI / 2, 7);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawProbe(val) {
+      const { sx, sy } = toScreen(probe.x, probe.y);
+      if (isDiv) {
+        if ($('.chk-blob').checked && blob.pts.length) drawBlob(val);
+        if ($('.chk-main').checked) drawFluxRing(sx, sy, val);
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      } else if ($('.chk-main').checked) {
+        drawPaddlewheel(sx, sy, val);
+      } else {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ---- Readout ----
+    const outPos = $('.out-pos'), outA = $('.out-a'), outB = $('.out-b'), outMain = $('.out-main');
+    const outBlob = isDiv ? $('.out-blob') : null;
+    const verdictEl = $('.verdict');
+    let lastVerdict = '';
+
+    const POS_COL = isDiv ? '#fb923c' : '#34d399';
+    const NEG_COL = isDiv ? '#60a5fa' : '#e879f9';
+    const POS_BG = isDiv ? 'rgba(251,146,60,0.22)' : 'rgba(52,211,153,0.22)';
+    const NEG_BG = isDiv ? 'rgba(96,165,250,0.22)' : 'rgba(232,121,249,0.22)';
+
+    function clean(v) { return Math.abs(v) < 0.005 ? 0 : v; }
+    function signed(v) { return (v > 0 ? '+' : '') + v.toFixed(2); }
+
+    function updateReadout(d, val) {
+      outPos.textContent = `(${probe.x.toFixed(2)}, ${probe.y.toFixed(2)})`;
+      const a = isDiv ? d.dPdx : d.dQdx;
+      const b = isDiv ? d.dQdy : d.dPdy;
+      outA.textContent = signed(clean(a));
+      outB.textContent = signed(clean(b));
+
+      const v = clean(val);
+      outMain.textContent = signed(v);
+      outMain.style.background = v > 0.05 ? POS_BG : v < -0.05 ? NEG_BG : 'rgba(148,163,184,0.18)';
+      outMain.style.color = v > 0.05 ? POS_COL : v < -0.05 ? NEG_COL : '#cbd5e1';
+
+      if (isDiv) {
+        outBlob.textContent = ($('.chk-blob').checked && blob.pts.length)
+          ? '\u00d7' + (polyArea(blob.pts) / blob.area0).toFixed(2)
+          : '\u2014';
+      }
+
+      let text, col;
+      if (isDiv) {
+        if (v > 0.05) { text = 'Source: there is net outflow here, so fluid spreads out and the blob grows.'; col = POS_COL; }
+        else if (v < -0.05) { text = 'Sink: there is net inflow here, so fluid is squeezed together and the blob shrinks.'; col = NEG_COL; }
+        else { text = 'Zero divergence: what flows in also flows out, so the blob changes shape but keeps its area.'; col = '#94a3b8'; }
+      } else {
+        if (v > 0.05) { text = 'Counter-clockwise spin: the paddlewheel turns CCW (positive curl).'; col = POS_COL; }
+        else if (v < -0.05) { text = 'Clockwise spin: the paddlewheel turns CW (negative curl).'; col = NEG_COL; }
+        else { text = 'No rotation: the paddlewheel is carried along but does not spin (zero curl).'; col = '#94a3b8'; }
+      }
+      if (text !== lastVerdict) {
+        lastVerdict = text;
+        verdictEl.textContent = text;
+        verdictEl.style.borderLeftColor = col;
+      }
+    }
+
+    // ---- UI wiring ----
+    const presetContainer = $('.presets');
+    const presetButtons = [];
+
+    function selectPreset(index) {
+      currentPreset = PRESETS[index];
+      probe = { ...currentPreset.probe };
+      presetButtons.forEach((b, i) => b.classList.toggle('active', i === index));
+      $('.formula-text').textContent = currentPreset.formula;
+      $('.formula-desc').textContent = currentPreset.desc;
+      $('.banner-title').textContent = currentPreset.title;
+      $('.banner-math').textContent = currentPreset.formula;
+      if (isDiv) resetBlob();
+      lastVerdict = '';
+      rebuildHeatmap();
+    }
+
+    PRESETS.forEach((p, idx) => {
+      const btn = document.createElement('button');
+      btn.textContent = p.short;
+      btn.addEventListener('click', () => selectPreset(idx));
+      presetContainer.appendChild(btn);
+      presetButtons.push(btn);
+    });
+
+    const hmNone = $('.hm-none'), hmOn = $('.hm-on');
+    function setHeatmap(on) {
+      heatmapOn = on;
+      hmNone.classList.toggle('active', !on);
+      hmOn.classList.toggle('active', on);
+      rebuildHeatmap();
+    }
+    hmNone.addEventListener('click', () => setHeatmap(false));
+    hmOn.addEventListener('click', () => setHeatmap(true));
+
+    const panel = $('.panel');
+    const showBtn = $('.show-btn');
+    const btnPause = $('.btn-pause');
+
+    function togglePanel() {
+      const hidden = panel.classList.toggle('hidden');
+      showBtn.classList.toggle('visible', hidden);
+    }
+    function togglePause() {
+      isPaused = !isPaused;
+      btnPause.textContent = isPaused ? 'Resume (Space)' : 'Pause (Space)';
+    }
+    $('.btn-hide').addEventListener('click', togglePanel);
+    showBtn.addEventListener('click', togglePanel);
+    btnPause.addEventListener('click', togglePause);
+
+    // Drop focus after clicking controls so Space always means "pause"
+    root.addEventListener('click', e => {
+      if (e.target.matches('button, input[type="checkbox"]')) e.target.blur();
+    });
+
+    function setProbeFromEvent(e) {
+      const t = e.touches ? e.touches[0] : e;
+      probe = toMath(t.clientX, t.clientY);
+    }
+    canvas.addEventListener('mousedown', e => { isDragging = true; setProbeFromEvent(e); });
+    window.addEventListener('mousemove', e => { if (isDragging && App.active === cfg.key) setProbeFromEvent(e); });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    canvas.addEventListener('touchstart', e => { isDragging = true; setProbeFromEvent(e); }, { passive: true });
+    window.addEventListener('touchmove', e => { if (isDragging && App.active === cfg.key) setProbeFromEvent(e); }, { passive: true });
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    window.addEventListener('keydown', e => {
+      if (App.active !== cfg.key || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'h') togglePanel();
+      else if (k === ' ') { e.preventDefault(); togglePause(); }
+      else if (k >= '1' && k <= String(PRESETS.length)) selectPreset(parseInt(k, 10) - 1);
+    });
+
+    window.addEventListener('resize', resize);
+
+    // ---- Frame ----
+    function frame(now) {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+
+      const d = partials(probe.x, probe.y);
+      const val = mainValue(d);
+
+      if (isDiv) {
+        if (Math.hypot(probe.x - blob.cx, probe.y - blob.cy) > 1e-3) resetBlob();
+      }
+
+      if (!isPaused) {
+        if ($('.chk-particles').checked) updateParticles(dt);
+        if (isDiv) {
+          if ($('.chk-blob').checked) updateBlob(dt);
+          pulsePhase += Math.min(2.2, 0.55 + Math.abs(val) * 0.35) * dt;
+        } else {
+          // positive curl = counter-clockwise (negative angle in Canvas 2D)
+          wheelAngle -= val * 1.45 * dt;
+        }
+      }
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, W, H);
+
+      if (heatmapOn) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(hmCanvas, 0, 0, W, H);
+        ctx.restore();
+      }
+
+      drawGrid();
+      if ($('.chk-arrows').checked) drawVectorField();
+      if ($('.chk-particles').checked) drawParticles();
+      drawProbe(val);
+      updateReadout(d, val);
+    }
+
+    function activate() { lastTime = performance.now(); resize(); }
+
+    resize();
+    selectPreset(0);
+    App.pages[cfg.key] = { frame, activate };
+  }
+
+  // ---------- Divergence page ----------
+  createFieldPage({
+    key: 'div',
+    kind: 'div',
+    rootId: 'page-div',
+    heading: 'Divergence',
+    defHTML: 'div F = <b>&part;P/&part;x + &part;Q/&part;y</b> &nbsp;for F = &langle;P, Q&rangle;',
+    aLabel: '&part;P/&part;x',
+    bLabel: '&part;Q/&part;y',
+    mainLabel: 'div F = &nabla;&middot;F',
+    mapLabel: 'Divergence Map',
+    legendHTML: '<span style="color:#fb923c">Orange</span> = source (div &gt; 0) &nbsp;&bull;&nbsp; <span style="color:#60a5fa">Blue</span> = sink (div &lt; 0)',
+    presets: [
+      {
+        short: '1. Source (div +)',
+        title: '1. Positive Divergence (Source)',
+        formula: 'F(x, y) = \u27e8 x, y \u27e9',
+        desc: 'Fluid spreads outward from every point',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: x, q: y })
+      },
+      {
+        short: '2. Sink (div \u2212)',
+        title: '2. Negative Divergence (Sink)',
+        formula: 'F(x, y) = \u27e8 \u2212x, \u2212y \u27e9',
+        desc: 'Fluid is squeezed inward toward the origin',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: -x, q: -y })
+      },
+      {
+        short: '3. Stretch (div +)',
+        title: '3. Spreading in One Direction',
+        formula: 'F(x, y) = \u27e8 x, 0 \u27e9',
+        desc: 'Only the x-part spreads out, so div = \u2202P/\u2202x = +1',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: x, q: 0 })
+      },
+      {
+        short: '4. Stretch + Squeeze',
+        title: '4. Stretch and Squeeze Cancel (div = 0)',
+        formula: 'F(x, y) = \u27e8 x, \u2212y \u27e9',
+        desc: 'Spreads along x, squeezes along y: net divergence zero',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: x, q: -y })
+      },
+      {
+        short: '5. Rotation (div 0)',
+        title: '5. Pure Rotation (div = 0)',
+        formula: 'F(x, y) = \u27e8 \u2212y, x \u27e9',
+        desc: 'Strong flow, but nothing is created or destroyed',
+        probe: { x: 1, y: 0.5 },
+        fn: (x, y) => ({ p: -y, q: x })
+      },
+      {
+        short: '6. Cells (varying)',
+        title: '6. Spatially Varying Divergence',
+        formula: 'F(x, y) = \u27e8 sin(x), sin(y) \u27e9',
+        desc: 'Drag the probe: sources (orange) and sinks (blue) alternate',
+        probe: { x: 1.2, y: 0.8 },
+        fn: (x, y) => ({ p: Math.sin(x), q: Math.sin(y) })
+      }
+    ]
+  });
+
+  // ---------- Curl page ----------
+  createFieldPage({
+    key: 'curl',
+    kind: 'curl',
+    rootId: 'page-curl',
+    heading: 'Curl',
+    defHTML: 'curl F = <b>&part;Q/&part;x &minus; &part;P/&part;y</b> &nbsp;for F = &langle;P, Q&rangle;',
+    aLabel: '&part;Q/&part;x',
+    bLabel: '&part;P/&part;y',
+    mainLabel: 'curl F = (&nabla;&times;F)<sub>z</sub>',
+    mapLabel: 'Curl Map',
+    legendHTML: '<span style="color:#34d399">Green</span> = counter-clockwise (curl &gt; 0) &nbsp;&bull;&nbsp; <span style="color:#e879f9">Magenta</span> = clockwise (curl &lt; 0)',
+    presets: [
+      {
+        short: '1. Vortex (CCW)',
+        title: '1. Pure Rotation (Positive Curl)',
+        formula: 'F(x, y) = \u27e8 \u2212y, x \u27e9',
+        desc: 'Counter-clockwise spin, curl = +2',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: -y, q: x })
+      },
+      {
+        short: '2. Vortex (CW)',
+        title: '2. Pure Rotation (Negative Curl)',
+        formula: 'F(x, y) = \u27e8 y, \u2212x \u27e9',
+        desc: 'Clockwise spin, curl = \u22122',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: y, q: -x })
+      },
+      {
+        short: '3. Shear (hidden)',
+        title: '3. Shear Flow (Hidden Curl)',
+        formula: 'F(x, y) = \u27e8 y, 0 \u27e9',
+        desc: 'Straight arrows, yet the paddlewheel spins clockwise!',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: y, q: 0 })
+      },
+      {
+        short: '4. Spiral (curl +)',
+        title: '4. Expanding Spiral',
+        formula: 'F(x, y) = \u27e8 0.7x \u2212 y, x + 0.7y \u27e9',
+        desc: 'The wheel spins CCW; the outward spreading does not affect it',
+        probe: { x: 0, y: 0 },
+        fn: (x, y) => ({ p: 0.7 * x - y, q: x + 0.7 * y })
+      },
+      {
+        short: '5. Radial (no curl)',
+        title: '5. No Curl (Radial Flow)',
+        formula: 'F(x, y) = \u27e8 x, y \u27e9',
+        desc: 'Fluid rushes outward but the paddlewheel never turns',
+        probe: { x: 1, y: 0.5 },
+        fn: (x, y) => ({ p: x, q: y })
+      },
+      {
+        short: '6. Eddies (varying)',
+        title: '6. Spatially Varying Curl',
+        formula: 'F(x, y) = \u27e8 sin(y), cos(x) \u27e9',
+        desc: 'Drag the probe: counter-clockwise (green) and clockwise (magenta) eddies',
+        probe: { x: 1.5, y: 0.8 },
+        fn: (x, y) => ({ p: Math.sin(y), q: Math.cos(x) })
+      }
+    ]
+  });
+
+  // =========================================================
+  // Navigation & main loop
+  // =========================================================
+  const navButtons = Array.from(document.querySelectorAll('#nav button'));
+
+  function showPage(key, updateHash = true) {
+    if (!PAGE_IDS[key]) key = 'grad';
+    App.active = key;
+    Object.keys(PAGE_IDS).forEach(k => {
+      document.getElementById(PAGE_IDS[k]).classList.toggle('active', k === key);
+    });
+    navButtons.forEach(b => b.classList.toggle('active', b.dataset.page === key));
+    document.title = { grad: 'Gradient', div: 'Divergence', curl: 'Curl' }[key] + ' \u2022 Vector Calculus Visualizer';
+    if (updateHash) {
+      try { history.replaceState(null, '', '#' + HASHES[key]); } catch (e) { location.hash = HASHES[key]; }
+    }
+    const page = App.pages[key];
+    if (page && page.activate) page.activate();
+  }
+
+  navButtons.forEach(b => b.addEventListener('click', () => { showPage(b.dataset.page); b.blur(); }));
+
+  window.addEventListener('keydown', e => {
+    if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'g') showPage('grad');
+    else if (k === 'd') showPage('div');
+    else if (k === 'c') showPage('curl');
+  });
+
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.replace('#', '');
+    const key = Object.keys(HASHES).find(k => HASHES[k] === h);
+    if (key && key !== App.active) showPage(key, false);
+  });
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    const page = App.pages[App.active];
+    if (page) page.frame(now);
+  }
+
+  (function init() {
+    const h = location.hash.replace('#', '');
+    const key = Object.keys(HASHES).find(k => HASHES[k] === h) || 'grad';
+    showPage(key, false);
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
